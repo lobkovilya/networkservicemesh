@@ -39,7 +39,22 @@ type tapInterface struct {
 	tag          []byte
 }
 
-type KernelInterface struct{}
+type KernelInterface struct {
+	swIfIndex  uint32
+	parameters map[string]string
+}
+
+func (m KernelInterface) GetSwIfIndex() uint32 {
+	return m.swIfIndex
+}
+
+func (m KernelInterface) GetParameters() map[string]string {
+	return m.parameters
+}
+
+func NewKernelMechanism(parameters map[string]string) Mechanism {
+	return KernelInterface{parameters: parameters}
+}
 
 var keyList = nsmutils.Keys{
 	nsmutils.NSMkeyNamespace: nsmutils.KeyProperties{
@@ -54,15 +69,15 @@ var keyList = nsmutils.Keys{
 }
 
 // CreateLocalConnect creates two tap interfaces in corresponding namespaces and then cross connect them
-func (m KernelInterface) CreateLocalConnect(apiCh govppapi.Channel, srcParameters, dstParameters map[string]string) (string, error) {
+func (m KernelInterface) CreateLocalConnect(apiCh govppapi.Channel, dst Mechanism) (string, error) {
 	var err error
+	srcParameters := m.GetParameters()
+	dstParameters := dst.GetParameters()
 
-	if err := m.Validate(srcParameters); err != nil {
+	if err := dst.Validate(); err != nil {
 		return "", err
 	}
-	if err := m.Validate(dstParameters); err != nil {
-		return "", err
-	}
+
 	// Extract namespaces for source and destination containers
 	srcNamespace := srcParameters[nsmutils.NSMkeyNamespace]
 	dstNamespace := dstParameters[nsmutils.NSMkeyNamespace]
@@ -121,7 +136,7 @@ func (m KernelInterface) CreateLocalConnect(apiCh govppapi.Channel, srcParameter
 	}
 
 	// Cross connecting two taps
-	if err := buildCrossConnect(apiCh, tap1, tap2); err != nil {
+	if err := BuildCrossConnect(apiCh, tap1.id, tap2.id); err != nil {
 		logrus.Errorf("failure during creation of a cross connect, with error: %+v", err)
 		return "", fmt.Errorf("Error in reply: %+v", err)
 	}
@@ -136,7 +151,8 @@ func (m KernelInterface) CreateLocalConnect(apiCh govppapi.Channel, srcParameter
 	return fmt.Sprintf("%d-%x-%x", common.LocalMechanismType_KERNEL_INTERFACE, tap1.id, tap2.id), nil
 }
 
-func (m KernelInterface) Validate(parameters map[string]string) error {
+func (m KernelInterface) Validate() error {
+	parameters := m.GetParameters()
 	// Check presence of both ipv4 address and prefix length
 	_, v1 := parameters[nsmutils.NSMkeyIPv4]
 	_, v2 := parameters[nsmutils.NSMkeyIPv4PrefixLength]
@@ -145,6 +161,14 @@ func (m KernelInterface) Validate(parameters map[string]string) error {
 	}
 
 	return nsmutils.ValidateParameters(parameters, keyList)
+}
+
+func (m KernelInterface) CreateVppInterface(apiCh govppapi.Channel) (uint32, error) {
+	return 0, nil
+}
+
+func (m KernelInterface) DeleteVppInterface(apiCh govppapi.Channel) error {
+	return nil
 }
 
 // createTapInterface creates new tap interface in a specified namespace
@@ -188,10 +212,10 @@ func bringCrossConnectUp(apiCh govppapi.Channel, tap1, tap2 *tapInterface) error
 }
 
 // build CrossConnect creates a 2 one way xconnect circuits between two tap interfaces
-func buildCrossConnect(apiCh govppapi.Channel, tap1, tap2 *tapInterface) error {
+func BuildCrossConnect(apiCh govppapi.Channel, tap1, tap2 uint32) error {
 	xconnectReq := l2.SwInterfaceSetL2Xconnect{
-		RxSwIfIndex: tap1.id,
-		TxSwIfIndex: tap2.id,
+		RxSwIfIndex: tap1,
+		TxSwIfIndex: tap2,
 		Enable:      1,
 	}
 	xconnectRpl := l2.SwInterfaceSetL2XconnectReply{}
@@ -199,8 +223,8 @@ func buildCrossConnect(apiCh govppapi.Channel, tap1, tap2 *tapInterface) error {
 		return err
 	}
 	xconnectReq = l2.SwInterfaceSetL2Xconnect{
-		RxSwIfIndex: tap2.id,
-		TxSwIfIndex: tap1.id,
+		RxSwIfIndex: tap2,
+		TxSwIfIndex: tap1,
 		Enable:      1,
 	}
 	xconnectRpl = l2.SwInterfaceSetL2XconnectReply{}
@@ -231,11 +255,9 @@ func IPv4ToByteSlice(ipv4Address string) ([]byte, error) {
 }
 
 // DeleteLocalConnect creates two tap interfaces in corresponding namespaces and then cross connect them
-func (m KernelInterface) DeleteLocalConnect(apiCh govppapi.Channel, connID string) error {
-	t1, _ := strconv.Atoi(strings.Split(connID, "-")[1])
-	t2, _ := strconv.Atoi(strings.Split(connID, "-")[2])
-	tap1IntfID := uint32(t1)
-	tap2IntfID := uint32(t2)
+func (m KernelInterface) DeleteLocalConnect(apiCh govppapi.Channel, dst Mechanism) error {
+	tap1IntfID := m.swIfIndex
+	tap2IntfID := dst.GetSwIfIndex()
 
 	// Bring both tap interfaces down
 	if err := bringCrossConnectDown(apiCh, tap1IntfID, tap2IntfID); err != nil {
@@ -244,7 +266,7 @@ func (m KernelInterface) DeleteLocalConnect(apiCh govppapi.Channel, connID strin
 	}
 
 	// Remove Cross connect from two taps
-	if err := removeCrossConnect(apiCh, tap1IntfID, tap2IntfID); err != nil {
+	if err := RemoveCrossConnect(apiCh, tap1IntfID, tap2IntfID); err != nil {
 		logrus.Errorf("failure during creation of a cross connect, with error: %+v", err)
 		return fmt.Errorf("Error in reply: %+v", err)
 	}
@@ -289,8 +311,8 @@ func bringCrossConnectDown(apiCh govppapi.Channel, tap1IntfID, tap2IntfID uint32
 	return nil
 }
 
-// removeCrossConnect removes  2 one way xconnect circuits between two tap interfaces
-func removeCrossConnect(apiCh govppapi.Channel, tap1IntfID, tap2IntfID uint32) error {
+// RemoveCrossConnect removes  2 one way xconnect circuits between two tap interfaces
+func RemoveCrossConnect(apiCh govppapi.Channel, tap1IntfID, tap2IntfID uint32) error {
 	xconnectReq := l2.SwInterfaceSetL2Xconnect{
 		RxSwIfIndex: tap1IntfID,
 		TxSwIfIndex: tap2IntfID,
