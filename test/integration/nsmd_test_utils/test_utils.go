@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -431,6 +432,35 @@ func CheckNSCConfig(k8s *kube_testing.K8s, t *testing.T, nscPodNode *v1.Pod, che
 	logrus.Printf("NSC Ping is success:%s", info.pingResponse)
 	return info
 }
+
+func IpAddr(k8s *kube_testing.K8s, pod *v1.Pod, container string) map[string]string {
+	response, errOut, err := k8s.Exec(pod, container, "ip", "addr")
+	logrus.Infof(response, errOut, err)
+	//response := "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n2: nsm: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN qlen 1000\n    link/ether 2a:f7:3e:b6:b1:bd brd ff:ff:ff:ff:ff:ff\n    inet 10.20.1.1/30 brd 10.20.1.3 scope global nsm\n       valid_lft forever preferred_lft forever\n348: eth0@if349: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1376 qdisc noqueue state UP \n    link/ether 3a:ba:28:c1:34:b6 brd ff:ff:ff:ff:ff:ff\n    inet 10.32.0.6/12 brd 10.47.255.255 scope global eth0\n       valid_lft forever preferred_lft forever\n%!(EXTRA string=, <nil>)"
+
+	ifaceRegExp, _ := regexp.Compile(`\p{Nd}:\s+\S+:`)
+	subnetRegExp, _ := regexp.Compile(`inet\s+\p{Nd}+\.\p{Nd}+\.\p{Nd}+\.\p{Nd}+/\p{Nd}+`)
+	matches := ifaceRegExp.FindAllStringIndex(response, -1)
+
+	rv := map[string]string{}
+
+	for i, m := range matches {
+		ifaceName := strings.Split(response[m[0]:m[1]], " ")[1]
+		ifaceName = ifaceName[:len(ifaceName)-1]
+		var pos int
+		if i != len(matches)-1 {
+			pos = matches[i+1][0]
+		} else {
+			pos = len(response) - 1
+		}
+		rv[ifaceName] = strings.Split(subnetRegExp.FindString(response[m[1]:pos]), " ")[1]
+	}
+	return rv
+}
+
+//func handleInterface(input string, regexp *regexp.Regexp, begin, end int) {
+//
+//}
 
 func IsBrokeTestsEnabled() bool {
 	_, ok := os.LookupEnv("BROKEN_TESTS_ENABLED")
