@@ -4,6 +4,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 )
 
 func NSCPodWebhook(name string, node *v1.Node) *v1.Pod {
@@ -38,13 +39,13 @@ func NSCPodWebhook(name string, node *v1.Node) *v1.Pod {
 	return pod
 }
 
-func NSCPod(name string, node *v1.Node, env map[string]string) *v1.Pod {
+func nscPod(name string, node *v1.Node, env map[string]string, image string) *v1.Pod {
 	ht := new(v1.HostPathType)
 	*ht = v1.HostPathDirectoryOrCreate
 
 	nsc_container := containerMod(&v1.Container{
 		Name:            "nsc",
-		Image:           "networkservicemesh/nsc:latest",
+		Image:           image,
 		ImagePullPolicy: v1.PullIfNotPresent,
 		Resources: v1.ResourceRequirements{
 			Limits: v1.ResourceList{
@@ -90,4 +91,13 @@ func NSCPod(name string, node *v1.Node, env map[string]string) *v1.Pod {
 		}
 	}
 	return pod
+}
+
+func NSCPod(name string, node *v1.Node, env map[string]string) *v1.Pod {
+	return nscPod(name, node, env, "networkservicemesh/nsc:latest")
+}
+
+func GreedyNSCPod(name string, node *v1.Node, env map[string]string, numOfConnections int) *v1.Pod {
+	env["NUM_OF_CONNECTIONS"] = strconv.Itoa(numOfConnections)
+	return nscPod(name, node, env, "networkservicemesh/greedy-nsc:latest")
 }
