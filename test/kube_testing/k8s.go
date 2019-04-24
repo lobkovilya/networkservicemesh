@@ -444,7 +444,7 @@ func (l *K8s) CreatePodsRaw(timeout time.Duration, failTest bool, templates ...*
 }
 
 func (l *K8s) CreatePod(template *v1.Pod) *v1.Pod {
-	results, err := l.CreatePodsRaw(podStartTimeout, true, template)
+	results, err := l.CreatePodsRaw(podStartTimeout*10, true, template)
 	if err != nil || len(results) == 0 {
 		return nil
 	} else {

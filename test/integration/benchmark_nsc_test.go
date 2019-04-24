@@ -30,11 +30,11 @@ func TestPlentyNsc(t *testing.T) {
 	k8s.PrepareDefault()
 	logrus.Printf("Cleanup done: %v", time.Since(s1))
 
-	nodesCount := 2
+	nodesCount := 1
 	nodesSetup := nsmd_test_utils.SetupNodes(k8s, nodesCount, defaultTimeout)
 
 	for i := 0; i < 1; i++ {
-		nsmd_test_utils.DeployICMP(k8s, nodesSetup[1].Node, fmt.Sprintf("icmp-%d", i), defaultTimeout)
+		nsmd_test_utils.DeployICMP(k8s, nodesSetup[0].Node, fmt.Sprintf("icmp-%d", i), defaultTimeout)
 	}
 	//
 	//nscList := []*v1.Pod{}
@@ -54,7 +54,7 @@ func TestPlentyNsc(t *testing.T) {
 		"OUTGOING_NSC_LABELS": "app=icmp",
 		"OUTGOING_NSC_NAME":   "icmp-responder",
 	}
-	numOfConnections := 2
+	numOfConnections := 50
 	nsc := k8s.CreatePod(pods.GreedyNSCPod("greedy-nsc", nodesSetup[0].Node, env, numOfConnections))
 	Expect(nsc.Name).To(Equal("greedy-nsc"))
 
