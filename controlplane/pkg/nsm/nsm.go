@@ -235,7 +235,10 @@ func (srv *networkServiceManager) request(ctx context.Context, request nsm.NSMRe
 		logrus.Infof("NSM:(10.2-%v) Sending request to dataplane: %v retry: %v", requestId, clientConnection.Xcon, dpRetry)
 		dpCtx, cancel := context.WithTimeout(context.Background(), DataplaneTimeout*100)
 		defer cancel()
+		t := time.Now()
 		newXcon, err := dataplaneClient.Request(dpCtx, clientConnection.Xcon)
+		logrus.Infof("DATAPLANE REQUEST: %v", time.Since(t))
+
 		if err != nil {
 			logrus.Errorf("NSM:(10.2.1-%v) Dataplane request failed: %v retry: %v", requestId, err, dpRetry)
 
@@ -333,8 +336,10 @@ func (srv *networkServiceManager) findConnectNSE(requestId string, ctx context.C
 		// 7.1.6 Update Request with exclude_prefixes, etc
 		srv.updateExcludePrefixes(nseConnection)
 
+		t := time.Now()
 		// 7.1.7 perform request to NSE/remote NSMD/NSE
 		clientConnection, err = srv.performNSERequest(requestId, ctx, endpoint, nseConnection, request, dp, existingConnection)
+		logrus.Infof("PERFORM NSE REQUEST: %v", time.Since(t))
 
 		// 7.1.8 in case of error we put NSE into ignored list to check another one.
 		if err != nil {

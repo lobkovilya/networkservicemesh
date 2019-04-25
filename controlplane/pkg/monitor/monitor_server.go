@@ -52,7 +52,7 @@ type monitorServerImpl struct {
 func NewMonitorServer(eventConverter EventConverter) MonitorServer {
 	return &monitorServerImpl{
 		eventConverter:           eventConverter,
-		eventCh:                  make(chan Event, defaultSize),
+		eventCh:                  make(chan Event, defaultSize*100),
 		newMonitorRecipientCh:    make(chan Recipient, defaultSize),
 		closedMonitorRecipientCh: make(chan Recipient, defaultSize),
 		entities:                 make(map[string]Entity),
@@ -61,6 +61,7 @@ func NewMonitorServer(eventConverter EventConverter) MonitorServer {
 }
 
 func (m *monitorServerImpl) Update(entity Entity) {
+	logrus.Infof("MONITOR_UPDATE: %v", len(m.eventCh))
 	m.eventCh <- Event{
 		EventType: UPDATE,
 		Entities:  map[string]Entity{entity.GetId(): entity},

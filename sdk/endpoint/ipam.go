@@ -50,23 +50,29 @@ func (ice *IpamEndpoint) Request(ctx context.Context, request *networkservice.Ne
 		return nil, err
 	}
 
+	t1 := time.Now()
 	/* Exclude the prefixes from the pool of available prefixes */
 	excludedPrefixes, err := ice.prefixPool.ExcludePrefixes(request.Connection.Context.ExcludedPrefixes)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("EXCLUDE_PREFIXES: %v", time.Since(t1))
 
+	t2 := time.Now()
 	//TODO: We need to somehow support IPv6.
 	srcIP, dstIP, prefixes, err := ice.prefixPool.Extract(request.Connection.Id, connectioncontext.IpFamily_IPV4, request.Connection.Context.ExtraPrefixRequest...)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("EXTRACT_PREFIXES: %v", time.Since(t2))
 
+	t3 := time.Now()
 	/* Release the actual prefixes that were excluded during IPAM */
 	err = ice.prefixPool.ReleaseExcludedPrefixes(excludedPrefixes)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("RELEASE_EXCLUDED_PREFIXES: %v", time.Since(t3))
 
 	// Update source/dst IP's
 	newConnection.Context.SrcIpAddr = srcIP.String()

@@ -58,7 +58,7 @@ func main() {
 		//	logrus.Errorf("Error during connection closing: %v", err)
 		//}
 		//logrus.Info("Sleeping...")
-		//time.Sleep(5 * time.Second)
+		//time.Sleep(1 * time.Second)
 	}
 
 	logrus.Info("nsm client: initialization is completed successfully")

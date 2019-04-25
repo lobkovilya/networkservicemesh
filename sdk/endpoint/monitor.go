@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/pkg/monitor/local_connection_monitor"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/pkg/apis/local/connection"
@@ -49,7 +50,9 @@ func (mce *MonitorEndpoint) Request(ctx context.Context, request *networkservice
 	}
 
 	logrus.Infof("Monitor UpdateConnection: %v", incomingConnection)
+	t := time.Now()
 	mce.monitorConnectionServer.Update(incomingConnection)
+	logrus.Infof("MONITOR_UPDATE: %v", time.Since(t))
 
 	return incomingConnection, nil
 }
