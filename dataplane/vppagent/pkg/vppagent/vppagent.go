@@ -150,7 +150,7 @@ func (v *VPPAgent) ConnectOrDisConnect(ctx context.Context, crossConnect *crossc
 		_, err = client.Delete(ctx, &configurator.DeleteRequest{Delete: dataChange})
 	}
 
-	v.printVppAgentConfiguration(client)
+	//v.printVppAgentConfiguration(client)
 
 	if err != nil {
 		logrus.Error(err)

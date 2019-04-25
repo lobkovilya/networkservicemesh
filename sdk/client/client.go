@@ -73,7 +73,7 @@ func (nsmc *NsmClient) Connect(name, mechanism, description string) (*connection
 		var err error
 		logrus.Infof("Sending outgoing request %v", outgoingRequest)
 
-		ctx, cancel := context.WithTimeout(nsmc.Context, connectTimeout)
+		ctx, cancel := context.WithTimeout(nsmc.Context, connectTimeout*100)
 		defer cancel()
 		outgoingConnection, err = nsmc.NsClient.Request(ctx, outgoingRequest)
 

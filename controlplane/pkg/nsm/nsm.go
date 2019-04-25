@@ -233,7 +233,7 @@ func (srv *networkServiceManager) request(ctx context.Context, request nsm.NSMRe
 		}
 
 		logrus.Infof("NSM:(10.2-%v) Sending request to dataplane: %v retry: %v", requestId, clientConnection.Xcon, dpRetry)
-		dpCtx, cancel := context.WithTimeout(context.Background(), DataplaneTimeout)
+		dpCtx, cancel := context.WithTimeout(context.Background(), DataplaneTimeout*100)
 		defer cancel()
 		newXcon, err := dataplaneClient.Request(dpCtx, clientConnection.Xcon)
 		if err != nil {

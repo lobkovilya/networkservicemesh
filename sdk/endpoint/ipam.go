@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -81,26 +80,26 @@ func (ice *IpamEndpoint) Request(ctx context.Context, request *networkservice.Ne
 	//}
 	newConnection.Context.ExtraPrefixes = prefixes
 
-	addrs, err := net.Interfaces()
-	if err == nil {
-		for _, iface := range addrs {
-			adrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-			for _, a := range adrs {
-				addr, _, _ := net.ParseCIDR(a.String())
-				if !addr.IsLoopback() {
-					newConnection.Context.IpNeighbors = append(newConnection.Context.IpNeighbors,
-						&connectioncontext.IpNeighbor{
-							Ip:              addr.String(),
-							HardwareAddress: iface.HardwareAddr.String(),
-						},
-					)
-				}
-			}
-		}
-	}
+	//addrs, err := net.Interfaces()
+	//if err == nil {
+	//	for _, iface := range addrs {
+	//		adrs, err := iface.Addrs()
+	//		if err != nil {
+	//			continue
+	//		}
+	//		for _, a := range adrs {
+	//			addr, _, _ := net.ParseCIDR(a.String())
+	//			if !addr.IsLoopback() {
+	//				newConnection.Context.IpNeighbors = append(newConnection.Context.IpNeighbors,
+	//					&connectioncontext.IpNeighbor{
+	//						Ip:              addr.String(),
+	//						HardwareAddress: iface.HardwareAddr.String(),
+	//					},
+	//				)
+	//			}
+	//		}
+	//	}
+	//}
 
 	err = newConnection.IsComplete()
 	if err != nil {
