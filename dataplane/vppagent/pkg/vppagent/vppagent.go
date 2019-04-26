@@ -145,7 +145,9 @@ func (v *VPPAgent) ConnectOrDisConnect(ctx context.Context, crossConnect *crossc
 	}
 	logrus.Infof("Sending DataChange to vppagent: %v", proto.MarshalTextString(dataChange))
 	if connect {
+		t := time.Now()
 		_, err = client.Update(ctx, &configurator.UpdateRequest{Update: dataChange})
+		logrus.Infof("VPPAGENT_REQUEST: %v", time.Since(t))
 	} else {
 		_, err = client.Delete(ctx, &configurator.DeleteRequest{Delete: dataChange})
 	}
