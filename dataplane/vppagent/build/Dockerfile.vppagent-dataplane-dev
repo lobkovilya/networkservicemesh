@@ -16,11 +16,12 @@ COPY --from=vpp_dev \
     /opt/vpp-agent/dev/vpp/build-root/vpp-dev_*.deb \
     /opt/vpp-agent/dev/vpp/build-root/vpp-dbg_*.deb \
     /opt/vpp-agent/dev/vpp/build-root/vpp-api-python_*.deb \
+    /opt/vpp-agent/dev/vpp/build-root/libvppinfra*.deb \
  /opt/vpp/
 
-RUN apt-get update && apt-get install -y zip python python-cffi python-enum34 \
+RUN apt-get update && apt-get install -y zip python python-cffi python-enum34 python3 \
   && cd /opt/vpp/ \
-  && dpkg -i vpp-dev_*.deb vpp-dbg_*.deb vpp-api-python_*.deb \
+  && dpkg -i vpp-dev_*.deb vpp-dbg_*.deb vpp-api-python_*.deb libvppinfra*.deb\
   && rm vpp*.deb
 
 RUN rm /opt/vpp-agent/dev/etcd.conf; echo 'Endpoint: "localhost:9111"' > /opt/vpp-agent/dev/grpc.conf
