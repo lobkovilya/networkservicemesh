@@ -12,8 +12,6 @@ import (
 	connection1 "github.com/networkservicemesh/networkservicemesh/controlplane/api/local/connection"
 	connection "github.com/networkservicemesh/networkservicemesh/controlplane/api/remote/connection"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -155,17 +153,6 @@ type DataplaneServer interface {
 	Close(context.Context, *crossconnect.CrossConnect) (*empty.Empty, error)
 }
 
-// UnimplementedDataplaneServer can be embedded to have forward compatible implementations.
-type UnimplementedDataplaneServer struct {
-}
-
-func (*UnimplementedDataplaneServer) Request(ctx context.Context, req *crossconnect.CrossConnect) (*crossconnect.CrossConnect, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Request not implemented")
-}
-func (*UnimplementedDataplaneServer) Close(ctx context.Context, req *crossconnect.CrossConnect) (*empty.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
-}
-
 func RegisterDataplaneServer(s *grpc.Server, srv DataplaneServer) {
 	s.RegisterService(&_Dataplane_serviceDesc, srv)
 }
@@ -273,14 +260,6 @@ func (x *mechanismsMonitorMonitorMechanismsClient) Recv() (*MechanismUpdate, err
 // MechanismsMonitorServer is the server API for MechanismsMonitor service.
 type MechanismsMonitorServer interface {
 	MonitorMechanisms(*empty.Empty, MechanismsMonitor_MonitorMechanismsServer) error
-}
-
-// UnimplementedMechanismsMonitorServer can be embedded to have forward compatible implementations.
-type UnimplementedMechanismsMonitorServer struct {
-}
-
-func (*UnimplementedMechanismsMonitorServer) MonitorMechanisms(req *empty.Empty, srv MechanismsMonitor_MonitorMechanismsServer) error {
-	return status.Errorf(codes.Unimplemented, "method MonitorMechanisms not implemented")
 }
 
 func RegisterMechanismsMonitorServer(s *grpc.Server, srv MechanismsMonitorServer) {

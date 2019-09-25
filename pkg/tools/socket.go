@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"crypto/tls"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"net"
 	"sync"
 	"time"
@@ -28,8 +29,8 @@ const (
 
 // DialConfig represents configuration of grpc connection, one per instance
 type DialConfig struct {
-	OpenTracing     bool
-	SecurityManager security.Manager
+	OpenTracing      bool
+	SecurityProvider security.Provider
 }
 
 var cfg DialConfig
@@ -56,13 +57,16 @@ func InitConfig(c DialConfig) {
 
 // NewServer checks DialConfig and calls grpc.NewServer with certain grpc.ServerOption
 func NewServer(opts ...grpc.ServerOption) *grpc.Server {
-	if GetConfig().SecurityManager != nil {
+	unaryInts := []grpc.UnaryServerInterceptor{}
+
+	if GetConfig().SecurityProvider != nil {
 		cred := credentials.NewTLS(&tls.Config{
 			ClientAuth:   tls.RequireAndVerifyClientCert,
-			Certificates: []tls.Certificate{*GetConfig().SecurityManager.GetCertificate()},
-			ClientCAs:    GetConfig().SecurityManager.GetCABundle(),
+			Certificates: []tls.Certificate{*GetConfig().SecurityProvider.GetCertificate()},
+			ClientCAs:    GetConfig().SecurityProvider.GetCABundle(),
 		})
 		opts = append(opts, grpc.Creds(cred))
+		unaryInts = append(unaryInts, security.ServerInterceptor(GetConfig().SecurityProvider))
 	}
 
 	if GetConfig().OpenTracing {
@@ -175,35 +179,34 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			defer cancel()
 		}
 
+		unaryInts := []grpc.UnaryClientInterceptor{}
+
 		if GetConfig().OpenTracing {
-			b.opts = append(b.opts, OpenTracingDialOptions()...)
+			b.opts = append(b.opts,
+				grpc.WithStreamInterceptor(
+					otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())))
+
+			unaryInts = append(unaryInts,
+				CloneArgsClientInterceptor(
+					otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads())))
 		}
 
-		if !b.insecure && GetConfig().SecurityManager != nil {
+		if !b.insecure && GetConfig().SecurityProvider != nil {
 			cred := credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify: true,
-				Certificates:       []tls.Certificate{*GetConfig().SecurityManager.GetCertificate()},
-				RootCAs:            GetConfig().SecurityManager.GetCABundle(),
+				Certificates:       []tls.Certificate{*GetConfig().SecurityProvider.GetCertificate()},
+				RootCAs:            GetConfig().SecurityProvider.GetCABundle(),
 			})
 			opts = append(opts, grpc.WithTransportCredentials(cred))
+			unaryInts = append(unaryInts, security.ClientInterceptor(GetConfig().SecurityProvider))
 		} else {
 			opts = append(opts, grpc.WithInsecure())
 		}
 
 		b.opts = append(b.opts, grpc.WithBlock())
+		b.opts = append(b.opts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInts...)))
 
 		return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
-	}
-}
-
-// OpenTracingDialOptions returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentracing
-func OpenTracingDialOptions() []grpc.DialOption {
-	return []grpc.DialOption{
-		grpc.WithUnaryInterceptor(
-			CloneArgsClientInterceptor(
-				otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads()))),
-		grpc.WithStreamInterceptor(
-			otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
 	}
 }
 
@@ -222,7 +225,7 @@ func readDialConfig() (DialConfig, error) {
 	}
 
 	if !insecure {
-		rv.SecurityManager = security.NewManager()
+		rv.SecurityProvider = security.NewProvider()
 	}
 
 	return rv, nil

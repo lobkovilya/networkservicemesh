@@ -343,7 +343,7 @@ func InitSpireSecurity(k8s *K8s) func() {
 	obt := security.NewSpireObtainerWithAddress(addr)
 	mgr := security.NewManagerWithCertObtainer(obt)
 	tools.InitConfig(tools.DialConfig{
-		SecurityManager: mgr,
+		SecurityProvider: mgr,
 	})
 
 	return func() {
